@@ -310,13 +310,6 @@ class TrainDataReader:
         return image
 
 
-    def write_network_input_func(self, image, bboxes, filename):
-        shape = image.shape
-        image = tf.py_func(self.write_network_input_pyfunc, [image, bboxes], tf.float32)
-        image.set_shape(shape)
-        return image, bboxes, filename
-
-
 # ----------------------------------------------------------------------------------------------------------------------
 def parse_jpg(filepath):
     img = tf.read_file(filepath)
