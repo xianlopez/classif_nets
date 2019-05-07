@@ -38,10 +38,10 @@ def main(args):
     if args.device == 'gpu0':
         run_test(args.test)
     elif args.device == 'gpu1':
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:1'):
             run_test(args.test)
     elif args.device == 'cpu':
-        with tf.device('/gpu:1'):
+        with tf.device('/cpu:0'):
             run_test(args.test)
     else:
         raise Exception('Device not recognized.')
