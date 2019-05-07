@@ -15,7 +15,7 @@ def random_add(x):
     return x
 
 
-def speed_test_2():
+def speed_test_3():
 
     n_steps = 10
     batch_size = 16
@@ -51,4 +51,4 @@ def speed_test_2():
 
 
 if __name__ == '__main__':
-    speed_test_2()
+    speed_test_3()

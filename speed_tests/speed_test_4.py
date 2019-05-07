@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 
-def speed_test_2():
+def speed_test_4():
 
     n_steps = 10
     batch_size = 16
@@ -40,4 +40,4 @@ def speed_test_2():
 
 
 if __name__ == '__main__':
-    speed_test_2()
+    speed_test_4()
