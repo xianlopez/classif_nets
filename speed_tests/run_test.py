@@ -5,6 +5,8 @@ from speed_tests.speed_test_2 import speed_test_2
 from speed_tests.speed_test_3 import speed_test_3
 from speed_tests.speed_test_4 import speed_test_4
 from speed_tests.speed_test_5 import speed_test_5
+from speed_tests.speed_test_6 import speed_test_6
+from speed_tests.speed_test_7 import speed_test_7
 
 
 def parse_args():
@@ -30,6 +32,10 @@ def run_test(test_num):
         speed_test_4()
     elif test_num == 5:
         speed_test_5()
+    elif test_num == 6:
+        speed_test_6()
+    elif test_num == 7:
+        speed_test_7()
     else:
         raise Exception('Test number not recognized.')
 
