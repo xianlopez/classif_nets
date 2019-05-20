@@ -174,7 +174,7 @@ class TrainEnv:
             checkpoints = []  # This is a list of Checkpoint objects.
 
             # Tensorboard:
-            merged, summary_writer, tensorboard_url = self.prepare_tensorboard(sess, args)
+            merged, summary_writer, tensorboard_url = prepare_tensorboard(sess, args.outdir)
 
             # Loop on epochs:
             current_lr = args.learning_rate
@@ -203,7 +203,11 @@ class TrainEnv:
                                 _ = sess.run([self.train_step])
 
                         else:
+
+                            ini = time.time()
                             _, loss, predictions, labels, summaryOut = sess.run([self.train_op, self.loss, self.predictions, self.labels, merged], {self.is_training: True})
+                            fin = time.time()
+                            print('Step ' + str(step) + ' done in ' + str(fin - ini) + ' s.')
 
                         if math.isnan(loss):
                             raise Exception("Loss is Not A Number")
@@ -483,22 +487,19 @@ class TrainEnv:
 
         return
 
-    # ----------------------------------------------------------------------------------------------------------------------
-    def prepare_tensorboard(self, sess, args):
-        merged = tf.summary.merge_all()
-        summary_writer = tf.summary.FileWriter(os.path.join(args.outdir, 'tensorboard'), sess.graph)
-        if os.name == 'nt':  # Windows
-            python_dir = os.path.dirname(sys.executable)
-            tensorboard_path = os.path.join(python_dir, 'Scripts', 'tensorboard')
-            command = tensorboard_path + ' --logdir=' + os.path.join(args.outdir, 'tensorboard')
-            subprocess.Popen(["start", "cmd", "/k", command], shell=True)
-        elif os.name == 'posix':  # Ubuntu
-            python_dir = os.path.dirname(sys.executable)
-            tensorboard_path = os.path.join(python_dir, 'tensorboard')
-            command = tensorboard_path + ' --logdir=' + os.path.join(args.outdir, 'tensorboard')
-            os.system('gnome-terminal -e "bash -c \'' + command + '\'; $SHELL"')
-        else:
-            raise Exception('Operative system name not recognized: ' + str(os.name))
-        hostname = socket.gethostname()
-        tensorboard_url = 'http://' + hostname + ':6006'
-        return merged, summary_writer, tensorboard_url
+
+def prepare_tensorboard(sess, outdir):
+    merged = tf.summary.merge_all()
+    summary_writer = tf.summary.FileWriter(os.path.join(outdir, 'tensorboard'), sess.graph)
+    python_dir = os.path.dirname(sys.executable)
+    tensorboard_path = os.path.join(python_dir, 'tensorboard')
+    command = tensorboard_path + ' --logdir=' + os.path.join(outdir, 'tensorboard')
+    if os.name == 'nt':  # Windows
+        subprocess.Popen(["start", "cmd", "/k", command], shell=True)
+    elif os.name == 'posix':  # Ubuntu
+        os.system('gnome-terminal -e "bash -c \'' + command + '\'; $SHELL"')
+    else:
+        raise Exception('Operative system name not recognized: ' + str(os.name))
+    hostname = socket.gethostname()
+    tensorboard_url = 'http://' + hostname + ':6006'
+    return merged, summary_writer, tensorboard_url

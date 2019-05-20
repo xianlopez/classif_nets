@@ -6,9 +6,13 @@ import tools
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.slim.nets
 import losses
+import socket
+import subprocess
+import sys
+import shutil
 
-# Using dataset and training
-# Work: 0.47 -> 0.30
+# Including tensorboard
+# Work: ~1.7s
 # Ermisenda:
 
 num_workers = 8
@@ -20,6 +24,32 @@ batch_size = 64
 n_steps = 10
 learning_rate = 1e-8
 momentum = 0.9
+percent_of_data = 1
+shuffle_data = True
+
+if os.name == 'nt':  # Windows
+    root_of_datasets = r'D:\datasets'
+elif os.name == 'posix':  # Ubuntu
+    root_of_datasets = '/media/Data/datasets'
+else:
+    raise Exception('Operative system name not recognized: ' + str(os.name))
+
+
+def prepare_tensorboard(sess, outdir):
+    merged = tf.summary.merge_all()
+    summary_writer = tf.summary.FileWriter(os.path.join(outdir, 'tensorboard'), sess.graph)
+    python_dir = os.path.dirname(sys.executable)
+    tensorboard_path = os.path.join(python_dir, 'tensorboard')
+    command = tensorboard_path + ' --logdir=' + os.path.join(outdir, 'tensorboard')
+    if os.name == 'nt':  # Windows
+        subprocess.Popen(["start", "cmd", "/k", command], shell=True)
+    elif os.name == 'posix':  # Ubuntu
+        os.system('gnome-terminal -e "bash -c \'' + command + '\'; $SHELL"')
+    else:
+        raise Exception('Operative system name not recognized: ' + str(os.name))
+    hostname = socket.gethostname()
+    tensorboard_url = 'http://' + hostname + ':6006'
+    return merged, summary_writer, tensorboard_url
 
 
 def parse_func(filename, label):
@@ -56,9 +86,10 @@ def build_dataset(filenames, label):
     return dataset
 
 
-def read_paths_and_labels(labels_file, dirdata):
+def read_paths_and_labels(labels_file, dirdata, percent_of_data, shuffle_data):
     paths = []
     labels = []
+
     try:
         with open(labels_file, 'r') as file:
             for line in file:
@@ -69,9 +100,15 @@ def read_paths_and_labels(labels_file, dirdata):
         print('File ' + labels_file + ' does not exist.')
         print(str(ex))
         raise
-    # Shuffle data:
-    indexes = np.arange(len(labels))
-    np.random.shuffle(indexes)
+    # Remove data or shuffle:
+    if percent_of_data != 100:
+        # Remove data:
+        indexes = np.random.choice(np.arange(len(labels)), int(percent_of_data / 100.0 * len(labels)), replace=False)
+    else:
+        # Shuffle data at least:
+        indexes = np.arange(len(labels))
+        if shuffle_data:
+            np.random.shuffle(indexes)
     aux_paths = paths
     aux_labels = labels
     paths = []
@@ -92,12 +129,12 @@ def read_paths_and_labels(labels_file, dirdata):
     return paths, labels
 
 
-def speed_test_8():
-    dataset_dir = os.path.join(os.path.dirname(tools.get_base_dir()), 'datasets', 'coco-animals')
+def speed_test_10():
+    dataset_dir = os.path.join(root_of_datasets, 'ImageNet')
     img_extension, classnames = tools.process_dataset_config(os.path.join(dataset_dir, 'dataset_info.xml'))
     nclasses = len(classnames)
     labels_file = os.path.join(dataset_dir, 'train_labels.txt')
-    filenames, labels = read_paths_and_labels(labels_file, dataset_dir)
+    filenames, labels = read_paths_and_labels(labels_file, dataset_dir, percent_of_data, shuffle_data)
     batched_dataset = build_dataset(filenames, labels)
     iterator = tf.data.Iterator.from_structure(batched_dataset.output_types, batched_dataset.output_shapes)
     x, y = iterator.get_next(name='iterator-output')
@@ -109,6 +146,7 @@ def speed_test_8():
         logits = tf.squeeze(logits, axis=[1, 2])
 
     loss = losses.cross_entropy(y, logits)
+    tf.summary.scalar("loss", loss)
 
     optimizer = tf.train.MomentumOptimizer(learning_rate, momentum)
     update_bn_stats_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -117,15 +155,23 @@ def speed_test_8():
 
     init_op = tf.global_variables_initializer()
 
+    outdir = os.path.join(tools.get_base_dir(), 'tensorboard')
+    if os.path.exists(outdir):
+        shutil.rmtree(outdir)
+        os.makedirs(outdir)
+    else:
+        os.makedirs(outdir)
     with tf.Session() as sess:
+        merged, summary_writer, tensorboard_url = prepare_tensorboard(sess, outdir)
         sess.run(init_op)
         sess.run(train_init_op)
         for i in range(n_steps):
             ini = time.time()
-            sess.run(fetches=[train_op])
+            _, summaryOut = sess.run(fetches=[train_op, merged])
+            summary_writer.add_summary(summaryOut, i)
             fin = time.time()
             print('Step ' + str(i) + ' done in ' + str(fin - ini) + ' s.')
 
 
 if __name__ == '__main__':
-    speed_test_8()
+    speed_test_10()
